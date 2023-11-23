@@ -1,5 +1,3 @@
-use std::vec;
-
 use rand::prelude::*;
 
 struct Agent {
