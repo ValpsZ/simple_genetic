@@ -220,7 +220,7 @@ impl Clone for Agent {
     }
 }
 
-fn create_agents(
+pub fn create_agents(
     amount: usize,
     genome_length: usize,
     input_size: u32,

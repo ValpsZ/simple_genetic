@@ -1,3 +1,3 @@
-mod simple_genetic;
+pub mod simple_genetic;
 
-use simple_genetic::agent;
+pub use simple_genetic::agent;
