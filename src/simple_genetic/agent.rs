@@ -4,12 +4,12 @@ pub struct Agent {
     genome: Genome,
     input_list: Vec<f32>,
     hidden_list: Vec<f32>,
-    output_list: Vec<f32>,
+    pub output_list: Vec<f32>,
     input_neurons: u32,
     hidden_neurons: u32,
     output_neurons: u32,
     mutation_rate: f64,
-    fitness: f32,
+    pub fitness: f32,
 }
 
 pub struct Genome {
