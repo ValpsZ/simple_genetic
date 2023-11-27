@@ -1,9 +1,18 @@
 [package]
-name = "genetic_algorithim"
+name ="simple_genetic"
 version = "0.1.0"
 edition = "2021"
+authors = ["ValpsZ"]
+license = "MIT"
+description = "A very basic genetic learning set up"
+homepage = "https://github.com/ValpsZ/simple_genetic"
+repository = "https://github.com/ValpsZ/simple_genetic"
+readme = "README.md"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "simple_genetic"
+path = "src/lib.rs"
+crate-type = ["lib"]
 
 [dependencies]
 rand = "0.8.5"
