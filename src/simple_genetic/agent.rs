@@ -1,7 +1,7 @@
 use rand::prelude::*;
 
 pub struct Agent {
-    genome: Genome,
+    pub genome: Genome,
     input_list: Vec<f32>,
     hidden_list: Vec<f32>,
     pub output_list: Vec<f32>,
@@ -13,7 +13,7 @@ pub struct Agent {
 }
 
 pub struct Genome {
-    gene_list: Vec<u32>,
+    pub gene_list: Vec<u32>,
     input_neurons: u32,
     hidden_neurons: u32,
     output_neurons: u32,
