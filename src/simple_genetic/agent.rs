@@ -1,5 +1,6 @@
 use rand::prelude::*;
 
+/// Represenrs a single Agent.
 pub struct Agent<'f> {
     pub genome: Genome,
     input_list: Vec<f32>,
@@ -13,7 +14,7 @@ pub struct Agent<'f> {
     pub fitness: f32,
     fitness_fn: &'f dyn Fn(Vec<f32>, Vec<f32>) -> f32,
 }
-
+/// Represents the genetic code of the agent's brain.
 pub struct Genome {
     pub gene_list: Vec<u32>,
     input_neurons: u32,
@@ -22,6 +23,7 @@ pub struct Genome {
 }
 
 impl Genome {
+    /// Prints the structure of the agent's brain in a formated way.
     pub fn print_brain(&mut self) -> () {
         println!("Input neurons: {}", &self.input_neurons);
         println!("Hidden neurons: {}", &self.hidden_neurons);
@@ -67,7 +69,7 @@ impl Genome {
         }
     }
 
-    pub fn sorted_genes(&mut self) -> Vec<u32> {
+    fn sorted_genes(&mut self) -> Vec<u32> {
         let mut sorted_genes: Vec<u32> = Vec::with_capacity(self.gene_list.len());
 
         for idx in 0..self.gene_list.len() {
@@ -98,8 +100,9 @@ impl Clone for Genome {
 }
 
 impl Agent<'_> {
+    /// Calculates the result and sets the output field, assumes input fields are set.
     pub fn calculate(&mut self) -> () {
-        self.reset_output();
+        self.clear_output();
         let sorted_gene_list = self.genome.sorted_genes();
 
         for i in 0..(sorted_gene_list).len() {
@@ -180,6 +183,7 @@ impl Agent<'_> {
         }
     }
 
+    /// Set value of a node inside agent.
     pub fn set_value(&mut self, value: f32, index: usize, list_index: i32) -> () {
         match list_index {
             0 => self.input_list[index] = value,
@@ -189,6 +193,7 @@ impl Agent<'_> {
         }
     }
 
+    /// Clear values of all nodes in the agent.
     pub fn clear_values(&mut self) -> () {
         self.input_list = vec![0.0; self.input_list.len()];
         self.hidden_list = vec![0.0; self.hidden_list.len()];
@@ -209,6 +214,7 @@ impl Agent<'_> {
         result
     }
 
+    /// Creates new agent with mutation from self.
     pub fn reproduce<'f>(&'f self) -> Self {
         let mut new_gene_list: Vec<u32> = Vec::new();
         for i in 0..(&self.genome.gene_list).len() {
@@ -235,11 +241,13 @@ impl Agent<'_> {
         }
     }
 
+    /// Calculates the fitness given the expected values and the agents fitness function.
     pub fn calculate_fitness(&mut self, expected: Vec<f32>) -> () {
         self.fitness = (self.fitness_fn)(self.output_list.clone(), expected);
     }
 
-    pub fn reset_output(&mut self) -> () {
+    /// Clears the output field.
+    pub fn clear_output(&mut self) -> () {
         for idx in 0..self.output_list.len() {
             self.set_value(0.0, idx, 2);
         }
@@ -268,6 +276,7 @@ impl Clone for Agent<'_> {
     }
 }
 
+/// Creates a `Vec<Agent>` with the specified fields.
 pub fn create_agents(
     amount: usize,
     genome_length: usize,

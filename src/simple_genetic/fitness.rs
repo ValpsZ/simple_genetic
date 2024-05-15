@@ -1,3 +1,4 @@
+/// Function to calculate the mean squared error between two vectors.
 pub const MEAN_SQUARED: &dyn Fn(Vec<f32>, Vec<f32>) -> f32 = &|output, expected| {
     assert_eq!(
         output.len(),
