@@ -1,17 +1,20 @@
 use rand::prelude::*;
 
-pub struct Agent {
+/// Represenrs a single Agent.
+pub struct Agent<'f> {
     pub genome: Genome,
     input_list: Vec<f32>,
     hidden_list: Vec<f32>,
     pub output_list: Vec<f32>,
+    activation_list: Vec<&'f dyn Fn(f32) -> f32>,
     input_neurons: u32,
     hidden_neurons: u32,
     output_neurons: u32,
     mutation_rate: f64,
     pub fitness: f32,
+    fitness_fn: &'f dyn Fn(Vec<f32>, Vec<f32>) -> f32,
 }
-
+/// Represents the genetic code of the agent's brain.
 pub struct Genome {
     pub gene_list: Vec<u32>,
     input_neurons: u32,
@@ -20,49 +23,68 @@ pub struct Genome {
 }
 
 impl Genome {
-    pub fn print_brain(&self) -> () {
+    /// Prints the structure of the agent's brain in a formated way.
+    pub fn print_brain(&mut self) -> () {
         println!("Input neurons: {}", &self.input_neurons);
         println!("Hidden neurons: {}", &self.hidden_neurons);
         println!("Output neurons: {}", &self.output_neurons);
-        for i in 0..((&self.gene_list).len()) {
-            let gene_number = &self.gene_list[i];
+        let sorted_genes = &self.sorted_genes();
+        for i in 0..((&sorted_genes).len()) {
+            let gene_number = &sorted_genes[i];
             println!("{}: Gene {gene_number}", i + 1);
-            if (&self.gene_list[i] & (0x1 << 31)) != 0 {
+            if (&sorted_genes[i] & (0x1 << 31)) != 0 {
                 let hidden_neuron_index =
-                    (&self.gene_list[i] & (0x01111111 << 24)) % &self.hidden_neurons;
-                if (&self.gene_list[i] & (0x000000001 << 23)) != 0 {
+                    (&sorted_genes[i] & (0x01111111 << 24)) % &self.hidden_neurons;
+                if (&sorted_genes[i] & (0x000000001 << 23)) != 0 {
                     let output_neuron_index =
-                        (&self.gene_list[i] & (0x0000000001111111 << 16)) % &self.output_neurons;
+                        (&sorted_genes[i] & (0x0000000001111111 << 16)) % &self.output_neurons;
                     println!("{}: Hidden neuron number {hidden_neuron_index} to output neuron number {output_neuron_index}", i + 1);
                 } else {
                     let hidden_neuron_index_2 =
-                        (&self.gene_list[i] & (0x0000000001111111 << 16)) % &self.hidden_neurons;
+                        (&sorted_genes[i] & (0x0000000001111111 << 16)) % &self.hidden_neurons;
                     println!("{}: Hidden neuron number {hidden_neuron_index} to hidden neuron number {hidden_neuron_index_2}", i + 1);
                 }
             } else {
                 let input_neuron_index =
-                    (&self.gene_list[i] & (0x01111111 << 24)) % &self.input_neurons;
-                if (&self.gene_list[i] & (0x000000001 << 23)) != 0 {
+                    (&sorted_genes[i] & (0x01111111 << 24)) % &self.input_neurons;
+                if (&sorted_genes[i] & (0x000000001 << 23)) != 0 {
                     let output_neuron_index =
-                        (&self.gene_list[i] & (0x0000000001111111 << 16)) % &self.output_neurons;
+                        (&sorted_genes[i] & (0x0000000001111111 << 16)) % &self.output_neurons;
                     println!("{}: Input neuron number {input_neuron_index} to output neuron number {output_neuron_index}", i + 1);
                 } else {
                     let hidden_neuron_index =
-                        (&self.gene_list[i] & (0x0000000001111111 << 16)) % &self.hidden_neurons;
+                        (&sorted_genes[i] & (0x0000000001111111 << 16)) % &self.hidden_neurons;
                     println!("{}: Input neuron number {input_neuron_index} to hidden neuron number {hidden_neuron_index}", i + 1);
                 }
             }
 
             let weight;
-            if (&self.gene_list[i] & 0b00000000000000001000000000000000u32) == 0 {
-                weight =
-                    (&self.gene_list[i] & 0b00000000000000000111111111111111u32) as f32 / 6000.0;
+            if (&sorted_genes[i] & 0b00000000000000001000000000000000u32) == 0 {
+                weight = (&sorted_genes[i] & 0b00000000000000000111111111111111u32) as f32 / 6000.0;
             } else {
                 weight =
-                    -((&self.gene_list[i] & 0b00000000000000000111111111111111u32) as f32 / 6000.0);
+                    -((&sorted_genes[i] & 0b00000000000000000111111111111111u32) as f32 / 6000.0);
             }
             println!("{}: Weight {weight}", i + 1)
         }
+    }
+
+    fn sorted_genes(&mut self) -> Vec<u32> {
+        let mut sorted_genes: Vec<u32> = Vec::with_capacity(self.gene_list.len());
+
+        for idx in 0..self.gene_list.len() {
+            if self.gene_list[idx] & (0x000000001 << 23) == 0 {
+                sorted_genes.push(self.gene_list[idx].clone());
+            }
+        }
+
+        for idx in 0..self.gene_list.len() {
+            if self.gene_list[idx] & (0x000000001 << 23) != 0 {
+                sorted_genes.push(self.gene_list[idx].clone());
+            }
+        }
+
+        sorted_genes
     }
 }
 
@@ -77,40 +99,43 @@ impl Clone for Genome {
     }
 }
 
-impl Agent {
+impl Agent<'_> {
+    /// Calculates the result and sets the output field, assumes input fields are set.
     pub fn calculate(&mut self) -> () {
-        for i in 0..(&self.genome.gene_list).len() {
+        self.clear_output();
+        let sorted_gene_list = self.genome.sorted_genes();
+
+        for i in 0..(sorted_gene_list).len() {
             let first_layer_index;
             let second_layer_index;
             let first_neuron_index;
             let second_neuron_index;
-            if (&self.genome.gene_list[i] & (0x1 << 31)) != 0 {
-                first_layer_index = 1;
-                first_neuron_index =
-                    (&self.genome.gene_list[i] & (0x01111111 << 24)) % &self.hidden_neurons;
-            } else {
+            if (sorted_gene_list[i] & (0x1 << 31)) == 0 {
                 first_layer_index = 0;
                 first_neuron_index =
-                    (&self.genome.gene_list[i] & (0x01111111 << 24)) % &self.input_neurons;
+                    (sorted_gene_list[i] & (0x01111111 << 24)) % &self.input_neurons;
+            } else {
+                first_layer_index = 1;
+                first_neuron_index =
+                    (sorted_gene_list[i] & (0x01111111 << 24)) % &self.hidden_neurons;
             }
 
-            if (&self.genome.gene_list[i] & (0x000000001 << 23)) != 0 {
-                second_layer_index = 2;
-                second_neuron_index =
-                    (&self.genome.gene_list[i] & (0x0000000001111111 << 16)) % &self.output_neurons;
-            } else {
+            if (sorted_gene_list[i] & (0x000000001 << 23)) == 0 {
                 second_layer_index = 1;
                 second_neuron_index =
-                    (&self.genome.gene_list[i] & (0x0000000001111111 << 16)) % &self.hidden_neurons;
+                    (sorted_gene_list[i] & (0x0000000001111111 << 16)) % &self.hidden_neurons;
+            } else {
+                second_layer_index = 2;
+                second_neuron_index =
+                    (sorted_gene_list[i] & (0x0000000001111111 << 16)) % &self.output_neurons;
             }
 
             let weight;
-            if (&self.genome.gene_list[i] & 0b00000000000000001000000000000000u32) == 0 {
-                weight = (&self.genome.gene_list[i] & 0b00000000000000000111111111111111u32) as f32
-                    / 6000.0;
+            if (sorted_gene_list[i] & 0b00000000000000001000000000000000u32) == 0 {
+                weight =
+                    (sorted_gene_list[i] & 0b00000000000000000111111111111111u32) as f32 / 6000.0;
             } else {
-                weight = -((&self.genome.gene_list[i] & 0b00000000000000000111111111111111u32)
-                    as f32
+                weight = -((sorted_gene_list[i] & 0b00000000000000000111111111111111u32) as f32
                     / 6000.0);
             }
 
@@ -118,14 +143,18 @@ impl Agent {
                 if second_layer_index == 1 {
                     self.set_value(
                         &self.hidden_list[second_neuron_index as usize]
-                            + (&self.input_list[first_neuron_index as usize] * weight),
+                            + &self.activation_list[0](
+                                &self.input_list[first_neuron_index as usize] * weight,
+                            ),
                         second_neuron_index as usize,
                         second_layer_index,
                     );
                 } else {
                     self.set_value(
                         &self.output_list[second_neuron_index as usize]
-                            + (&self.input_list[first_neuron_index as usize] * weight),
+                            + &self.activation_list[0](
+                                &self.input_list[first_neuron_index as usize] * weight,
+                            ),
                         second_neuron_index as usize,
                         second_layer_index,
                     );
@@ -134,14 +163,18 @@ impl Agent {
                 if second_layer_index == 1 {
                     self.set_value(
                         &self.hidden_list[second_neuron_index as usize]
-                            + (&self.hidden_list[first_neuron_index as usize] * weight),
+                            + &self.activation_list[1](
+                                &self.hidden_list[first_neuron_index as usize] * weight,
+                            ),
                         second_neuron_index as usize,
                         second_layer_index,
                     );
                 } else {
                     self.set_value(
                         &self.output_list[second_neuron_index as usize]
-                            + (&self.hidden_list[first_neuron_index as usize] * weight),
+                            + &self.activation_list[1](
+                                &self.hidden_list[first_neuron_index as usize] * weight,
+                            ),
                         second_neuron_index as usize,
                         second_layer_index,
                     );
@@ -150,6 +183,7 @@ impl Agent {
         }
     }
 
+    /// Set value of a node inside agent.
     pub fn set_value(&mut self, value: f32, index: usize, list_index: i32) -> () {
         match list_index {
             0 => self.input_list[index] = value,
@@ -159,13 +193,14 @@ impl Agent {
         }
     }
 
+    /// Clear values of all nodes in the agent.
     pub fn clear_values(&mut self) -> () {
         self.input_list = vec![0.0; self.input_list.len()];
         self.hidden_list = vec![0.0; self.hidden_list.len()];
         self.output_list = vec![0.0; self.output_list.len()];
     }
 
-    pub fn mutation_u32(&self) -> u32 {
+    fn mutation_u32(&self) -> u32 {
         let mut rng = rand::thread_rng();
 
         let mut result: u32 = 0;
@@ -179,8 +214,9 @@ impl Agent {
         result
     }
 
-    pub fn reproduce(&self) -> Agent {
-        let mut new_gene_list: Vec<u32> = vec![];
+    /// Creates new agent with mutation from self.
+    pub fn reproduce<'f>(&'f self) -> Self {
+        let mut new_gene_list: Vec<u32> = Vec::new();
         for i in 0..(&self.genome.gene_list).len() {
             new_gene_list.push(&self.genome.gene_list[i] ^ self.mutation_u32());
         }
@@ -195,31 +231,52 @@ impl Agent {
             input_list: vec![0.0; self.input_neurons as usize],
             hidden_list: vec![0.0; self.hidden_neurons as usize],
             output_list: vec![0.0; self.output_neurons as usize],
+            activation_list: self.activation_list.clone(),
             input_neurons: self.input_neurons,
             hidden_neurons: self.hidden_neurons,
             output_neurons: self.output_neurons,
             mutation_rate: self.mutation_rate,
             fitness: self.fitness,
+            fitness_fn: self.fitness_fn,
+        }
+    }
+
+    /// Calculates the fitness given the expected values and the agents fitness function.
+    pub fn calculate_fitness(&mut self, expected: Vec<f32>) -> () {
+        self.fitness = (self.fitness_fn)(self.output_list.clone(), expected);
+    }
+
+    /// Clears the output field.
+    pub fn clear_output(&mut self) -> () {
+        for idx in 0..self.output_list.len() {
+            self.set_value(0.0, idx, 2);
         }
     }
 }
 
-impl Clone for Agent {
+impl Clone for Agent<'_> {
     fn clone(&self) -> Self {
         Self {
             genome: self.genome.clone(),
             input_list: self.input_list.clone(),
             hidden_list: self.hidden_list.clone(),
             output_list: self.output_list.clone(),
+            activation_list: self.activation_list.clone(),
             input_neurons: self.input_neurons,
             hidden_neurons: self.hidden_neurons,
             output_neurons: self.output_neurons,
             mutation_rate: self.mutation_rate,
             fitness: self.fitness,
+            fitness_fn: self.fitness_fn,
         }
+    }
+
+    fn clone_from(&mut self, source: &Self) {
+        *self = source.clone()
     }
 }
 
+/// Creates a `Vec<Agent>` with the specified fields.
 pub fn create_agents(
     amount: usize,
     genome_length: usize,
@@ -227,10 +284,13 @@ pub fn create_agents(
     hidden_size: u32,
     output_size: u32,
     mutation_rate: f64,
-) -> Vec<Agent> {
+    input_activ_fn: &'static dyn Fn(f32) -> f32,
+    hidden_activ_fn: &'static dyn Fn(f32) -> f32,
+    fitness_fn: &'static dyn Fn(Vec<f32>, Vec<f32>) -> f32,
+) -> Vec<Agent<'static>> {
     let mut result: Vec<Agent> = Vec::with_capacity(amount);
     for _ in 0..amount {
-        let new_agent = Agent {
+        let new_agent: Agent<'static> = Agent {
             genome: Genome {
                 gene_list: vec![0; genome_length],
                 input_neurons: input_size,
@@ -240,11 +300,13 @@ pub fn create_agents(
             input_list: vec![0.0; input_size as usize],
             hidden_list: vec![0.0; hidden_size as usize],
             output_list: vec![0.0; output_size as usize],
+            activation_list: vec![input_activ_fn, hidden_activ_fn],
             input_neurons: input_size,
             hidden_neurons: hidden_size,
             output_neurons: output_size,
-            mutation_rate: mutation_rate,
+            mutation_rate,
             fitness: 100.0,
+            fitness_fn,
         };
         result.push(new_agent)
     }
