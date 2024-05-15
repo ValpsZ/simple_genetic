@@ -1,2 +1,2 @@
 A very basic genetic learning set up.
-For examples look at github.
+For examples look at tests on github.
