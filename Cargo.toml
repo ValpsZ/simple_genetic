@@ -1,10 +1,10 @@
 [package]
 name ="simple_genetic"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2021"
 authors = ["ValpsZ"]
 license = "MIT"
-description = "A very basic genetic learning set up"
+description = "A crate to aid with genetic learning"
 homepage = "https://github.com/ValpsZ/simple_genetic"
 repository = "https://github.com/ValpsZ/simple_genetic"
 readme = "README.md"
