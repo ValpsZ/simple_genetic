@@ -1,18 +1,17 @@
 #[cfg(test)]
 mod tests {
-    use rand::{thread_rng, Rng};
     use simple_genetic::simple_genetic::{activations, agent::create_agents, fitness};
 
     #[test]
     fn example_use() {
         // Constants
         const GENERATIONS: usize = 100;
-        const NUM_AGENTS: usize = 10;
-        const GENOME_LENGTH: usize = 20;
+        const NUM_AGENTS: usize = 20;
+        const GENOME_LENGTH: usize = 4;
         const INPUT_SIZE: u32 = 1;
-        const HIDDEN_SIZE: u32 = 10;
+        const HIDDEN_SIZE: u32 = 2;
         const OUTPUT_SIZE: u32 = 1;
-        const MUTATION_RATE: f64 = 0.002;
+        const MUTATION_RATE: f64 = 0.1;
 
         // Create agents
         let mut agents = create_agents(
@@ -22,15 +21,15 @@ mod tests {
             HIDDEN_SIZE,
             OUTPUT_SIZE,
             MUTATION_RATE,
-            activations::TANH,
-            activations::TANH,
+            activations::LIN,
+            activations::LIN,
             fitness::MEAN_SQUARED,
         );
 
         // Training loop
         for generation in 0..GENERATIONS {
-            let input_value = thread_rng().gen_range(-std::f32::consts::PI..std::f32::consts::PI);
-            let expected_output = vec![input_value.sin()];
+            let input_value = if rand::random() { -1.0 } else { 1.0 };
+            let expected_output = vec![-input_value];
 
             for agent in &mut agents {
                 agent.set_value(input_value, 0, 0);
@@ -38,7 +37,11 @@ mod tests {
                 agent.calculate_fitness(expected_output.clone());
             }
 
-            agents.sort_by(|a, b| b.fitness.partial_cmp(&a.fitness).unwrap());
+            agents.sort_by(|a, b| {
+                a.fitness
+                    .partial_cmp(&b.fitness)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
             let best_fittness = agents[0].fitness;
             let selected_agents = agents
                 .iter()
@@ -47,12 +50,12 @@ mod tests {
                 .collect::<Vec<_>>();
 
             let mut new_population = Vec::new();
-            for idx in 0..NUM_AGENTS {
+            for idx in 0..selected_agents.len() {
                 let parent = &selected_agents[idx];
                 let child = parent.reproduce();
                 new_population.push(child);
             }
-            agents = new_population;
+            agents = [agents, new_population].concat();
 
             println!("Generation {}: Best fitness: {}", generation, best_fittness);
         }
